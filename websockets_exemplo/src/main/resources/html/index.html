@@ -1,189 +1,204 @@
 <!doctype html>
-
 <html lang="pt-br">
-
 <head>
-
 <title>Chat STOMP</title>
-
 <style>
-
 body {
-
-font-family: system-ui, Arial;
-
-max-width: 800px;
-
-margin: 2rem auto;
-
+    font-family: system-ui, Arial;
+    max-width: 1000px;
+    margin: 2rem auto;
 }
-
+.container {
+    display: flex;
+    gap: 1rem;
+}
+.chat-area {
+    flex: 1;
+}
+.users-area {
+    width: 200px;
+}
 .row {
-
-display: flex;
-
-gap: .5rem;
-
-margin: .5rem 0;
-
+    display: flex;
+    gap: .5rem;
+    margin: .5rem 0;
 }
-
-input,
-
-button {
-
-padding: .5rem;
-
+input, button, select {
+    padding: .5rem;
 }
-
 #log {
-
-border: 1px solid #ddd;
-
-padding: 1rem;
-
-height: 320px;
-
-overflow: auto;
-
+    border: 1px solid #ddd;
+    padding: 1rem;
+    height: 320px;
+    overflow: auto;
 }
-
+#usersList {
+    border: 1px solid #ddd;
+    padding: 1rem;
+    height: 320px;
+    overflow: auto;
+}
+.private-message {
+    color: #0066cc;
+    font-style: italic;
+}
 small {
-
-color: #666;
-
+    color: #666;
 }
-
 </style>
-
 </head>
 <body>
-
 <h2>Chat em tempo real (Spring + STOMP)</h2>
 
 <div class="row">
-
-<input id="username" placeholder="Seu nome" />
-
-<button id="connectBtn">Conectar</button>
-
-<button id="disconnectBtn" disabled>Desconectar</button>
-
+    <input id="username" placeholder="Seu nome" />
+    <button id="connectBtn">Conectar</button>
+    <button id="disconnectBtn" disabled>Desconectar</button>
 </div>
 
-<div class="row">
-
-<input id="message" placeholder="Mensagem pública" />
-
-<button id="sendPublicBtn" disabled>Enviar público</button>
-
+<div class="container">
+    <div class="chat-area">
+        <div class="row">
+            <input id="message" placeholder="Mensagem" style="flex: 1" />
+            <select id="messageType">
+                <option value="public">Público</option>
+                <option value="private">Privado</option>
+            </select>
+            <select id="privateRecipient" style="display: none;">
+            </select>
+            <button id="sendBtn" disabled>Enviar</button>
+        </div>
+        <div id="log"></div>
+    </div>
+    
+    <div class="users-area">
+        <h3>Usuários Online</h3>
+        <div id="usersList"></div>
+    </div>
 </div>
-
-<div id="log"></div>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
 <script>
 
 let stomp = null;
-
 let connected = false;
+let currentUser = '';
 
 const log = (m) => {
+    const el = document.getElementById('log');
+    const p = document.createElement('div');
+    p.innerHTML = m;
+    el.appendChild(p);
+    el.scrollTop = el.scrollHeight;
+};
 
-const el = document.getElementById('log');
-
-const p = document.createElement('div');
-
-p.innerHTML = m;
-
-el.appendChild(p);
-
-el.scrollTop = el.scrollHeight;
-
+const updateUsersList = (users) => {
+    const list = document.getElementById('usersList');
+    const select = document.getElementById('privateRecipient');
+    list.innerHTML = '';
+    select.innerHTML = '<option value="">Selecione um usuário</option>';
+    
+    users.forEach(user => {
+        if (user !== currentUser) {
+            const div = document.createElement('div');
+            div.textContent = user;
+            list.appendChild(div);
+            
+            const option = document.createElement('option');
+            option.value = user;
+            option.textContent = user;
+            select.appendChild(option);
+        }
+    });
 };
 
 function connect() {
+    const user = document.getElementById('username').value?.trim();
+    if (!user) { alert('Informe seu nome'); return; }
+    currentUser = user;
 
-const user = document.getElementById('username').value?.trim();
+    const wsUrl = "ws://localhost:8080/ws";
+    const ws = new WebSocket(wsUrl);
+    stomp = Stomp.over(ws);
 
-if (!user) { alert('Informe seu nome'); return; }
+    stomp.connect({}, () => {
+        connected = true;
+        document.getElementById('connectBtn').disabled = true;
+        document.getElementById('disconnectBtn').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
 
-const wsUrl = "ws://localhost:8080/ws";
+        // Subscribe to public chat
+        stomp.subscribe('/topic/public', frame => {
+            const msg = JSON.parse(frame.body);
+            log(`<b>[${msg.tipoMensagem}]</b> ${msg.origem ?? ''}: ${msg.texto} <small>${msg.dataHora}</small>`);
+        });
 
-const ws = new WebSocket(wsUrl);
+        // Subscribe to online users updates
+        stomp.subscribe('/topic/online', frame => {
+            const users = JSON.parse(frame.body);
+            updateUsersList(users);
+        });
 
-stomp = Stomp.over(ws);
+        // Subscribe to private messages
+        stomp.subscribe('/topic/dm.' + currentUser, frame => {
+            const msg = JSON.parse(frame.body);
+            log(`<span class="private-message"><b>[Mensagem Privada de ${msg.origem}]</b>: ${msg.texto} <small>${msg.dataHora}</small></span>`);
+        });
 
-stomp.connect({}, () => {
-
-connected = true;
-
-document.getElementById('connectBtn').disabled = true;
-
-document.getElementById('disconnectBtn').disabled = false;
-
-document.getElementById('sendPublicBtn').disabled = false;
-
-stomp.subscribe('/topic/public', frame => {
-
-const msg = JSON.parse(frame.body);
-
-log(`<b>[${msg.tipoMensagem}]</b> ${msg.origem ?? ''}: ${msg.texto} <small>${msg.dataHora}</small>`);
-
-});
-
-stomp.send('/app/chat.join', {}, JSON.stringify({ origem: user }));
-
-log(`<i>Conectado como ${user}</i>`);
-
-}, (err) => {
-
-log(`<span style="color:#c00">Erro de conexão: ${err}</span>`);
-
-});
-
+        stomp.send('/app/chat.join', {}, JSON.stringify({ origem: user }));
+        log(`<i>Conectado como ${user}</i>`);
+    }, (err) => {
+        log(`<span style="color:#c00">Erro de conexão: ${err}</span>`);
+    });
 }
 
 function disconnect() {
-
-if (stomp && connected) {
-
-const user = document.getElementById('username').value?.trim();
-
-stomp.send('/app/chat.leave', {}, JSON.stringify({ origem: user }));
-
-stomp.disconnect(() => log('<i>Desconectado </i>'));
-
-connected = false;
-
-document.getElementById('connectBtn').disabled = false;
-
-document.getElementById('disconnectBtn').disabled = true;
-
-document.getElementById('sendPublicBtn').disabled = true;
-
+    if (stomp && connected) {
+        stomp.send('/app/chat.leave', {}, JSON.stringify({ origem: currentUser }));
+        stomp.disconnect(() => {
+            log('<i>Desconectado</i>');
+            document.getElementById('usersList').innerHTML = '';
+        });
+        connected = false;
+        currentUser = '';
+        document.getElementById('connectBtn').disabled = false;
+        document.getElementById('disconnectBtn').disabled = true;
+        document.getElementById('sendBtn').disabled = true;
+    }
 }
 
-}
+function sendMessage() {
+    const texto = document.getElementById('message').value?.trim();
+    if (!texto) return;
 
-function sendPublic() {
-
-const user = document.getElementById('username').value?.trim();
-
-const texto = document.getElementById('message').value?.trim();
-
-if (!texto) return;
-
-stomp.send('/app/chat.send', {}, JSON.stringify({ origem: user, texto }));
-
-document.getElementById('message').value = '';
-
+    const messageType = document.getElementById('messageType').value;
+    
+    if (messageType === 'public') {
+        stomp.send('/app/chat.send', {}, JSON.stringify({ origem: currentUser, texto }));
+    } else {
+        const destino = document.getElementById('privateRecipient').value;
+        if (!destino) {
+            alert('Selecione um destinatário');
+            return;
+        }
+        stomp.send('/app/chat.private', {}, JSON.stringify({ 
+            origem: currentUser,
+            destino: destino,
+            texto: texto
+        }));
+        log(`<span class="private-message"><b>[Mensagem Privada para ${destino}]</b>: ${texto}</span>`);
+    }
+    
+    document.getElementById('message').value = '';
 }
 
 document.getElementById('connectBtn').onclick = connect;
-
 document.getElementById('disconnectBtn').onclick = disconnect;
+document.getElementById('sendBtn').onclick = sendMessage;
 
-document.getElementById('sendPublicBtn').onclick = sendPublic;
+document.getElementById('messageType').onchange = function() {
+    const isPrivate = this.value === 'private';
+    document.getElementById('privateRecipient').style.display = isPrivate ? 'block' : 'none';
+};
 
 </script>
