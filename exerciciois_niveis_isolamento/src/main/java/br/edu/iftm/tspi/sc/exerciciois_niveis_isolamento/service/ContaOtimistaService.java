@@ -1,9 +1,12 @@
 package br.edu.iftm.tspi.sc.exerciciois_niveis_isolamento.service;
 
+import org.springframework.stereotype.Service;
+
 import br.edu.iftm.tspi.sc.exerciciois_niveis_isolamento.domain.ContaOtimista;
 import br.edu.iftm.tspi.sc.exerciciois_niveis_isolamento.repository.ContaOtimistaRepository;
 import jakarta.transaction.Transactional;
 
+@Service
 public class ContaOtimistaService {
     private final ContaOtimistaRepository repository;
 

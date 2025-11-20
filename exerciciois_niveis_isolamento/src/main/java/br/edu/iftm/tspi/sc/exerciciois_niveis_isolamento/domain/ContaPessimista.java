@@ -5,10 +5,12 @@ import java.io.Serializable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Entity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+@Entity
 @Table(name = "tb_conta_pessimista")
 @Data
 @NoArgsConstructor

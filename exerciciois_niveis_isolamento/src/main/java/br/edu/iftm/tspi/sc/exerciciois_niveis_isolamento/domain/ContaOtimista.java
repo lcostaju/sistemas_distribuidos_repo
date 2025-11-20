@@ -19,7 +19,7 @@ public class ContaOtimista implements Serializable {
     @Column(name = "num_conta")
     private String numero;
 
-    @Column(name = "vlr_salario")
+    @Column(name = "vlr_saldo")
     private Double saldo;
 
     @Version
