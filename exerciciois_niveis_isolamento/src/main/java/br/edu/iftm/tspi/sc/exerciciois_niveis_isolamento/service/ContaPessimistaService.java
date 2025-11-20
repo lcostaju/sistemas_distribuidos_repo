@@ -23,6 +23,13 @@ public class ContaPessimistaService {
             throw new IllegalArgumentException(String.format("Conta não encontrada: %s", numero)); // Adicionei %s para
                                                                                                    // clareza
         }
+
+        try {
+            Thread.sleep(10000);
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+
         conta.setSaldo(conta.getSaldo() + valor);
 
         repository.save(conta);
@@ -40,6 +47,11 @@ public class ContaPessimistaService {
         if (conta.getSaldo() < valor) {
             // Lança exceção se o saldo for insuficiente
             throw new IllegalArgumentException("Saldo insuficiente");
+        }
+        try {
+            Thread.sleep(10000);
+        } catch (Exception e) {
+            // TODO: handle exception
         }
 
         // Realiza a operação de saque

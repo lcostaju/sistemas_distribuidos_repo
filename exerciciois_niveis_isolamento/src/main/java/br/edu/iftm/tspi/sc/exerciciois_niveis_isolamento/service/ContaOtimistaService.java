@@ -23,6 +23,13 @@ public class ContaOtimistaService {
             throw new IllegalArgumentException("Saldo insuficiente");
         }
 
+        try {
+            Thread.sleep(10000);
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+
+
         conta.setSaldo(conta.getSaldo() - valor);
 
         repository.save(conta);
@@ -32,7 +39,11 @@ public class ContaOtimistaService {
     public void deposita(String numero, Double valor){
         ContaOtimista conta = repository.findById(numero)
         .orElseThrow(() -> new IllegalArgumentException("Conta não encontrada"));
-
+        try {
+            Thread.sleep(10000);
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
         conta.setSaldo(conta.getSaldo() + valor);
 
         repository.save(conta);
